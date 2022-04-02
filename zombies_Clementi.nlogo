@@ -14,24 +14,64 @@ end
 
 
 to go
+  ask humans [
+    runaway
+  ]
 
-    if count humans = 0 [stop] ;; end simulation if humans have all become zombies
+  ask zombies [
+    hunt
+  ]
 
-    ; --------- Control Zombie movement --------- ;
-    ifelse count humans-on neighbors > 0 ;; check for neighboring humans
-      ;; if there are humans nearby, walk identify one, face it, move one patch closer to it
-      ;; if there is a human on the same patch as a zombie, turn it to a zombie
-      [ask zombies
-        [face one-of humans-on neighbors]  ;; tell the zombie to face one of the nearby humans
-        fd 1 ;; move one patch closer to the human the zombie faced
-        if count humans-here > 0 [ask humans-here [set breed zombies]]
+;  update-plot
+  tick
+end
+
+; --------- Control Zombie movement --------- ;
+to hunt
+
+  if count humans = 0 [stop] ;; if there aren't any more humans, stop simulation
+
+  ;; Procedure:
+  ;; check for neighboring humans
+  ;; if there are humans nearby, identify one, face it, move one patch closer to it
+  ;; if there is a human on the same patch as a zombie, turn it to a zombie
+
+    let h-prey one-of humans in-radius 2
+    ifelse h-prey != nobody [
+      face h-prey
+      fd 1
+      if count humans-here > 0 [
+        let h-prey-to-eat humans-here
+        ask h-prey-to-eat [set color red]
+        ask h-prey-to-eat [set breed zombies]
       ]
+    ][
+      rt random 100 ;; turn zombies in a random direction
+      lt random 100 ;; turn zombies in a random direction
+      fd 1 ;; move forward one patch
+    ]
 
-      ;; if there aren't any humans nearby, turn to a random direction, and walk forward 1 patch
-      [ask zombies
-        [set heading random 360] ;; turn zombies in a random direction
-        fd 1 ;; move forward one patch
-      ]
+end
+
+
+; --------- Control human movement --------- ;
+to runaway
+  ;; Procedure:
+  ;; check for neighboring zombies
+  ;; if there are zombies nearby, identify one, face it,
+  ;; turn 180 degrees away from it, and move two patches away (humans walk 2x speed of zombies)
+  ;; if there are no nearby zombies, move forward 1 patch
+
+    let z-close one-of zombies in-radius 2
+    ifelse z-close != nobody [
+      face z-close
+      set heading heading + 180
+      fd 2
+    ][
+      rt random 100 ;; turn zombies in a random direction
+      lt random 100 ;; turn zombies in a random direction
+      fd 1 ;; move forward one patch
+    ]
 
 end
 @#$#@#$#@
@@ -81,12 +121,12 @@ NIL
 
 BUTTON
 63
-94
+85
 126
-127
+118
 Go!
 go
-NIL
+T
 1
 T
 OBSERVER
