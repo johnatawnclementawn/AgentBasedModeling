@@ -14,6 +14,9 @@ end
 
 
 to go
+
+  if count humans = 0 [stop] ;; if there aren't any more humans, stop simulation
+
   ask humans [
     runaway
   ]
@@ -29,14 +32,13 @@ end
 ; --------- Control Zombie movement --------- ;
 to hunt
 
-  if count humans = 0 [stop] ;; if there aren't any more humans, stop simulation
-
   ;; Procedure:
   ;; check for neighboring humans
   ;; if there are humans nearby, identify one, face it, move one patch closer to it
   ;; if there is a human on the same patch as a zombie, turn it to a zombie
+  ;; if there are no humans nearby, wander aimlessly
 
-    let h-prey one-of humans in-radius 2
+    let h-prey one-of humans in-radius 3
     ifelse h-prey != nobody [
       face h-prey
       fd 1
@@ -60,25 +62,25 @@ to runaway
   ;; check for neighboring zombies
   ;; if there are zombies nearby, identify one, face it,
   ;; turn 180 degrees away from it, and move two patches away (humans walk 2x speed of zombies)
-  ;; if there are no nearby zombies, move forward 1 patch
+  ;; if there are no nearby zombies, wander aimlessly
 
-    let z-close one-of zombies in-radius 2
+    let z-close one-of zombies in-radius 3
     ifelse z-close != nobody [
       face z-close
       set heading heading + 180
       fd 2
     ][
-      rt random 100 ;; turn zombies in a random direction
-      lt random 100 ;; turn zombies in a random direction
+      rt random 100 ;; turn humans in a random direction
+      lt random 100 ;; turn humans in a random direction
       fd 1 ;; move forward one patch
     ]
 
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
+8
 10
-647
+445
 448
 -1
 -1
@@ -103,10 +105,10 @@ ticks
 30.0
 
 BUTTON
-62
-30
-126
-63
+529
+234
+685
+320
 Setup
 setup
 NIL
@@ -120,10 +122,10 @@ NIL
 1
 
 BUTTON
-63
-85
-126
-118
+530
+342
+682
+432
 Go!
 go
 T
@@ -135,6 +137,25 @@ NIL
 NIL
 NIL
 1
+
+PLOT
+455
+14
+765
+218
+Humans vs Zombies
+Time
+Total # of representatives
+0.0
+150.0
+0.0
+230.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -817084 true "" "plot count humans"
+"pen-1" 1.0 0 -11033397 true "" "plot count zombies"
 
 @#$#@#$#@
 ## WHAT IS IT?
