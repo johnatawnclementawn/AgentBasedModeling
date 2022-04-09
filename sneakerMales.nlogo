@@ -1,8 +1,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Johnathan Clementi ;;;;
 
+globals [
+  adult-sex-ratio-list     ;; tracks adult-sex-ratio at each tick to compute running average and standard deviation
+  age-list                 ;; list of ages of dead individuals
+  adult-age                ;; tracks the age of adulthood
+]
+
 breed [females female]
-breed [bullMales bullMale]
+breed [parentalMales parentalMale]
 breed [sneakerMales sneakerMale]
 
 females-own [
@@ -13,16 +19,22 @@ females-own [
   gestation              ;; tracks the time of carrying a child till a female reaches gestation-period
   age                    ;; to keep track of age
   longevity              ;; gets assigned at birth - age up to which an individual lives
+  sexual-maturity        ;; universal sexual maturity for females
+                         ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
+  nest                   ;; during mating, fish is assigned to a nest
   num-of-exes            ;; tracks mating partners an individual had in its life
   num-of-children        ;; tracks how many children an individual had
   adult?                 ;; boolean to flag if this agent is an adult
 ]
 
-bullMales-own [
+parentalMales-own [
   partner               ;; a variable to temporary store a mating-partner
   sneaker-child-chance  ;; this is a trait variable that influences the probability of giving birth to a male child
   age                   ;; tracks of age
   longevity             ;; gets assigned at birth - age up to which an individual lives
+  sexual-maturity       ;; universal sexual maturity for parental males
+                        ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
+  nest                   ;; during mating, fish is assigned to a nest
   num-of-exes           ;; tracks mating partners an individual had in its life
   num-of-children       ;; track how many children it has
   adult?                ;; boolean to flag if this agent is an adult
@@ -33,6 +45,9 @@ sneakerMales-own [
   sneaker-child-chance  ;; this is a trait variable that influences the probability of giving birth to a male child
   age                   ;; tracks of age
   longevity             ;; gets assigned at birth - age up to which an individual lives
+  sexual-maturity       ;; universal sexual maturity for sneaker males
+                        ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
+  nest                   ;; during mating, fish is assigned to a nest
   num-of-exes           ;; tracks mating partners an individual had in its life
   num-of-children       ;; track how many children it has
   adult?                ;; boolean to flag if this agent is an adult
@@ -42,17 +57,16 @@ sneakerMales-own [
 to setup
   __clear-all-and-reset-ticks
   set-default-shape females "fish" ;; make agent symbols fish
-  set-default-shape bullMales "fish" ;; make agent symbols fish
+  set-default-shape parentalMales "fish" ;; make agent symbols fish
   set-default-shape sneakerMales "fish" ;; make agent symbols fish
 
   ;; Initialize simulation with these features:
   ask patches [ set pcolor blue ]
 
-  ;; Calculate female, bullMale, and sneakerMale population sizes based on user input
-  let femaleInitPop round((initial-adult-sex-ratio / 100) * initial-population-size) ;; female initial pop is (females : (bullMales + sneakerMales))
+  ;; Calculate female, parentalMale, and sneakerMale population sizes based on user input
+  let femaleInitPop round((initial-adult-sex-ratio / 100) * initial-population-size) ;; female initial pop is (females : (parentalMales + sneakerMales))
   let sneakerInitPop round((initial-population-size - femaleInitPop) * (initial-sneaker-ratio / 100)) ;; sneaker init pop is (total pop - femaleInitPop) * percent of sneakers
-  let bullMaleInitPop (initial-population-size - femaleInitPop - sneakerInitPop) ;; bullMale init pop is (total pop - (femaleInitPop + sneakerInitPop))
-
+  let parentalMaleInitPop (initial-population-size - femaleInitPop - sneakerInitPop) ;; parentalMale init pop is (total pop - (femaleInitPop + sneakerInitPop))
 
   ;; Create sneaker male agents and initialize them
   create-sneakerMales ( sneakerInitPop ) [
@@ -71,6 +85,7 @@ to setup
     ; initialize turtle variables
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
+    set sexual-maturity 20 ;; sneakers become sexually mature at roughly 2 years old
     set partner nobody
     set num-of-exes 0
     set num-of-children 0
@@ -78,7 +93,7 @@ to setup
   ]
 
   ;; Create bull male agents and initialize them
-  create-bullMales ( bullMaleInitPop ) [
+  create-parentalMales ( parentalMaleInitPop ) [
     setxy random-xcor random-ycor
     set size 2
     set color green
@@ -94,6 +109,7 @@ to setup
     ; initialize turtle variables
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
+    set sexual-maturity 70 ;; parental males become sexually mature at roughly 7 years old
     set partner nobody
     set num-of-exes 0
     set num-of-children 0
@@ -118,18 +134,56 @@ to setup
     set gestation 0
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
+    set sexual-maturity 40 ;; females become sexually mature at roughly 4 years old
     set num-of-exes 0
     set num-of-children 0
     set adult? True
   ]
 
+  set adult-sex-ratio-list []
+  set age-list []
+  set adult-age int (0.15 * mean-longevity) ; Agents with age more than 25% of mean-longevity are considered
+
 end
 
 
 to go
-  if not any? turtles [stop]
+  if not any? turtles [stop] ;; if there are no more turtles, end the simulation
 
+  ask turtles [ check-if-dead ] ;; remove turtles that have become too old
 
+  ask parentalMales [
+    makeNest
+  ]
+
+  tick
+end
+
+;; procedure to move randomly
+to move ; turtle procedure
+  rt random 60
+  lt random 60
+  fd 0.1
+end
+
+;; if an individual is older than the assigned longevity it dies
+to check-if-dead ; turtle procedure
+  ifelse age > longevity [
+    set age-list lput [age] of self age-list
+    die
+  ][
+    set age (age + 1)
+  ]
+end
+
+;; parentalMales make nests if they are sexually mature
+to makeNest
+  ifelse age > sexual-maturity [      ;; if parental male has reached sexual maturity, stop, create a nest
+    set nest patches in-radius 2    ;; define the patch the parental male is on currently as the nest
+    ask nest [set pcolor brown]
+  ][
+    move
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -183,7 +237,7 @@ BUTTON
 114
 Go!
 go
-T
+NIL
 1
 T
 OBSERVER
@@ -191,18 +245,18 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 SLIDER
 631
 19
-803
+882
 52
 initial-population-size
 initial-population-size
 50
 500
-120.0
+100.0
 10
 1
 NIL
@@ -211,7 +265,7 @@ HORIZONTAL
 SLIDER
 630
 102
-802
+882
 135
 initial-sneaker-ratio
 initial-sneaker-ratio
@@ -226,7 +280,7 @@ HORIZONTAL
 SLIDER
 630
 142
-879
+881
 175
 initial-average-sneaker-child-chance
 initial-average-sneaker-child-chance
@@ -239,15 +293,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-630
-182
-802
-215
+905
+20
+1155
+53
 mean-longevity
 mean-longevity
 0
-150
-75.0
+120
+80.0
 5
 1
 NIL
@@ -256,13 +310,13 @@ HORIZONTAL
 SLIDER
 631
 60
-811
+883
 93
 initial-adult-sex-ratio
 initial-adult-sex-ratio
 5
 95
-45.0
+50.0
 5
 1
 %
