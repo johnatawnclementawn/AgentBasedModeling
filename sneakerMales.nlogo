@@ -13,10 +13,8 @@ breed [sneakerMales sneakerMale]
 
 females-own [
   partner                ;; a variable to temporarily store a mating-partner
-  carrying?              ;; a boolean to track if a female is carrying a child after mating
   sneaker-child-chance   ;; this is a trait variable that influences the probability of giving birth to a male child
   temp-sneaker-child-chance ;; stores sneaker-child-chance for a particular father-mother pair
-  gestation              ;; tracks the time of carrying a child till a female reaches gestation-period
   age                    ;; to keep track of age
   longevity              ;; gets assigned at birth - age up to which an individual lives
   sexual-maturity        ;; universal sexual maturity for females
@@ -68,6 +66,11 @@ to setup
   let sneakerInitPop round((initial-population-size - femaleInitPop) * (initial-sneaker-ratio / 100)) ;; sneaker init pop is (total pop - femaleInitPop) * percent of sneakers
   let parentalMaleInitPop (initial-population-size - femaleInitPop - sneakerInitPop) ;; parentalMale init pop is (total pop - (femaleInitPop + sneakerInitPop))
 
+  set adult-sex-ratio-list []
+  set age-list []
+  set adult-age int (0.15 * mean-longevity) ; Agents with age more than 25% of mean-longevity are considered
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Create sneaker male agents and initialize them
   create-sneakerMales ( sneakerInitPop ) [
     setxy random-xcor random-ycor
@@ -86,12 +89,14 @@ to setup
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
     set sexual-maturity 20 ;; sneakers become sexually mature at roughly 2 years old
+    ifelse (age >= sexual-maturity) [set adult? True] [set adult? False] ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
     set num-of-exes 0
     set num-of-children 0
-    set adult? True
   ]
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Create bull male agents and initialize them
   create-parentalMales ( parentalMaleInitPop ) [
     setxy random-xcor random-ycor
@@ -110,19 +115,20 @@ to setup
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
     set sexual-maturity 70 ;; parental males become sexually mature at roughly 7 years old
+    ifelse (age >= sexual-maturity) [set adult? True] [set adult? False] ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
     set num-of-exes 0
     set num-of-children 0
-    set adult? True
   ]
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Create female agents and initialize them
   create-females ( femaleInitPop ) [
     setxy random-xcor random-ycor
     set size 1.5
     set color pink
     set partner nobody
-    set carrying? false
 
     ; females are assigned initial sneaker-child-chance from a random-normal distribution
     set sneaker-child-chance random-normal initial-average-sneaker-child-chance 0.05
@@ -131,18 +137,15 @@ to setup
     if sneaker-child-chance > 1 [ set sneaker-child-chance 1 ]
 
     ; initialize rest of turtle variables
-    set gestation 0
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
     set sexual-maturity 40 ;; females become sexually mature at roughly 4 years old
+    ifelse (age >= sexual-maturity) [set adult? True] [set adult? False] ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set num-of-exes 0
     set num-of-children 0
-    set adult? True
-  ]
 
-  set adult-sex-ratio-list []
-  set age-list []
-  set adult-age int (0.15 * mean-longevity) ; Agents with age more than 25% of mean-longevity are considered
+  ]
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 end
 
@@ -151,19 +154,28 @@ to go
   if not any? turtles [stop] ;; if there are no more turtles, end the simulation
 
   ask turtles [ check-if-dead ] ;; remove turtles that have become too old
+  ask turtles [ check-if-adult ] ;; check if turtles are sexually mature
 
   ask parentalMales [
     makeNest
+  ]
+
+  ask females [
+    findNest
+  ]
+
+  ask sneakerMales [
+   findNest
   ]
 
   tick
 end
 
 ;; procedure to move randomly
-to move ; turtle procedure
+to swim ; all fish procedure
   rt random 60
   lt random 60
-  fd 0.1
+  fd 0.3
 end
 
 ;; if an individual is older than the assigned longevity it dies
@@ -176,13 +188,40 @@ to check-if-dead ; turtle procedure
   ]
 end
 
+;; if an individual is older than the assigned sexual maturity it is an adult
+to check-if-adult ; turtle procedure
+  ifelse (age >= sexual-maturity) [
+    set adult? True
+  ][
+    set adult? False
+  ]
+end
+
 ;; parentalMales make nests if they are sexually mature
 to makeNest
-  ifelse age > sexual-maturity [      ;; if parental male has reached sexual maturity, stop, create a nest
-    set nest patches in-radius 2    ;; define the patch the parental male is on currently as the nest
-    ask nest [set pcolor brown]
+  ifelse adult? = True [            ;; if parental male has reached sexual maturity create a nest
+    ifelse any? patches in-radius 3 with [pcolor = brown] [ ;; if there are nests nearby, move, then make your nest
+      swim
+    ][
+      set nest patches in-radius 2    ;; create patch-set for nest
+      ask nest [set pcolor brown]
+    ]
   ][
-    move
+    swim
+  ]
+end
+
+;; adult females will search for a nest to lay their eggs
+to findNest
+  ifelse adult? = True [ ;; if female is adult, it can breed
+    let nearby-nest one-of neighbors with [pcolor = brown] ;; capture a nearby-nest
+    ifelse nearby-nest != nobody [ ;; if there is a nest nearby
+     move-to nearby-nest ;; move to it
+    ][
+      swim
+    ]
+  ][
+    swim
   ]
 end
 @#$#@#$#@
@@ -237,7 +276,7 @@ BUTTON
 114
 Go!
 go
-NIL
+T
 1
 T
 OBSERVER
@@ -256,7 +295,7 @@ initial-population-size
 initial-population-size
 50
 500
-100.0
+160.0
 10
 1
 NIL
@@ -271,7 +310,7 @@ initial-sneaker-ratio
 initial-sneaker-ratio
 5
 95
-30.0
+70.0
 5
 1
 %
@@ -301,7 +340,7 @@ mean-longevity
 mean-longevity
 0
 120
-80.0
+110.0
 5
 1
 NIL
