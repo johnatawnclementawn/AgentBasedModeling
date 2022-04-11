@@ -32,7 +32,9 @@ parentalMales-own [
   longevity             ;; gets assigned at birth - age up to which an individual lives
   sexual-maturity       ;; universal sexual maturity for parental males
                         ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
-  nest                   ;; during mating, fish is assigned to a nest
+  nest                  ;; during mating, fish is assigned to a nest
+  nestAge               ;; time incrementor for how long a parental has been nesting, used for destroying nests after 'breeding season'
+  nestWait              ;; time incrementor for how long a parental male needs to wait until nesting again - simulates temporal nature of breeding
   num-of-exes           ;; tracks mating partners an individual had in its life
   num-of-children       ;; track how many children it has
   adult?                ;; boolean to flag if this agent is an adult
@@ -197,12 +199,23 @@ to check-if-adult ; turtle procedure
   ]
 end
 
+;; check nest age, remove nest if it has reached a pre-determined nesting time
+to check-nest-age ;; parental male procedure
+  if nestAge >= 5 [
+    ask nest [set pcolor blue] ;; return the nest to the ocean
+    set nest 0 ;; reset nest patch values to 0
+  ]
+end
+
 ;; parentalMales make nests if they are sexually mature
 to makeNest
   ifelse adult? = True [            ;; if parental male has reached sexual maturity, find space to make a nest
     let nestNearby patches in-radius 3 with [pcolor = brown] ;; find any nearby nests - nests are spatially dispersed
 
+    check-nest-age ;; check if I have been nesting for a while, if I have remove the old nest
+
     ifelse nest != 0 [ ;; if I have a nest already
+      set nestAge nestAge + 1 ;; increment the age of the nest
       ifelse nestNearby != nobody [ ;; and there is a nest nearby
         move-to one-of nest ;; move back to my nest
       ][ ;; if there isn't a nest nearby, but I have a nest, move to my nest
@@ -226,7 +239,7 @@ end
 
 ;; adult females will search for a nest to lay their eggs
 to findNest
-  ifelse adult? = True [ ;; if female is adult, it can breed
+  ifelse adult? = True [ ;; if female is sexually mature, it can breed
     let nearby-nest one-of neighbors with [pcolor = brown] ;; capture a nearby-nest
     ifelse nearby-nest != nobody [ ;; if there is a nest nearby
      move-to nearby-nest ;; move to it
@@ -308,7 +321,7 @@ initial-population-size
 initial-population-size
 50
 500
-140.0
+160.0
 10
 1
 NIL
@@ -323,7 +336,7 @@ initial-sneaker-ratio
 initial-sneaker-ratio
 5
 95
-70.0
+20.0
 5
 1
 %
