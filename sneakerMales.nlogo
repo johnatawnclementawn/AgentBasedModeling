@@ -199,15 +199,28 @@ end
 
 ;; parentalMales make nests if they are sexually mature
 to makeNest
-  ifelse adult? = True [            ;; if parental male has reached sexual maturity create a nest
-    ifelse any? patches in-radius 3 with [pcolor = brown] [ ;; if there are nests nearby, move, then make your nest
-      swim
-    ][
-      set nest patches in-radius 2    ;; create patch-set for nest
-      ask nest [set pcolor brown]
+  ifelse adult? = True [            ;; if parental male has reached sexual maturity, find space to make a nest
+    let nestNearby patches in-radius 3 with [pcolor = brown] ;; find any nearby nests - nests are spatially dispersed
+
+    ifelse nest != 0 [ ;; if I have a nest already
+      ifelse nestNearby != nobody [ ;; and there is a nest nearby
+        move-to one-of nest ;; move back to my nest
+      ][ ;; if there isn't a nest nearby, but I have a nest, move to my nest
+        move-to one-of nest ;; move back to my nest
+      ]
+    ][ ;; if I don't have a nest
+      ifelse nestNearby != nobody [ ;; and there is a nest nearby
+        ;; move to an open area with no nests nearby and make a nest
+        move-to one-of patches in-radius 5 with [pcolor = blue] ;; and not any? patches [in-radius 2 of nestNearby]
+        set nest patches in-radius 2    ;; create patch-set for nest
+        ask nest [set pcolor brown]
+      ][ ;; if there isn't a nest nearby, finally, I can make my own nest!
+        set nest patches in-radius 2    ;; create patch-set for nest
+        ask nest [set pcolor brown]
+      ]
     ]
   ][
-    swim
+    swim ;; if the parental male isn't sexually mature yet, just swim around
   ]
 end
 
@@ -295,7 +308,7 @@ initial-population-size
 initial-population-size
 50
 500
-160.0
+140.0
 10
 1
 NIL
