@@ -201,11 +201,17 @@ end
 
 ;; check nest age, remove nest if it has reached a pre-determined nesting time
 to check-nest-age ;; parental male procedure
-  if nestAge >= 5 [
+  if (nest != 0 and nestAge >= 5) [
     ask nest [set pcolor blue] ;; return the nest to the ocean
     set nest 0 ;; reset nest patch values to 0
+    set nestWait 0
   ]
 end
+
+;; check how long a parental male needs to wait until nesting again
+;to check-nest-wait ;; parental male procedure
+;  ifelse nestWait <= 5
+;end
 
 ;; parentalMales make nests if they are sexually mature
 to makeNest
@@ -222,14 +228,20 @@ to makeNest
         move-to one-of nest ;; move back to my nest
       ]
     ][ ;; if I don't have a nest
-      ifelse nestNearby != nobody [ ;; and there is a nest nearby
-        ;; move to an open area with no nests nearby and make a nest
-        move-to one-of patches in-radius 5 with [pcolor = blue] ;; and not any? patches [in-radius 2 of nestNearby]
-        set nest patches in-radius 2    ;; create patch-set for nest
-        ask nest [set pcolor brown]
-      ][ ;; if there isn't a nest nearby, finally, I can make my own nest!
-        set nest patches in-radius 2    ;; create patch-set for nest
-        ask nest [set pcolor brown]
+      ifelse nestWait >= 5 [ ;; if I've waited enough time after nesting, I can build a new nest
+        set nestAge  0 ;; first reset the new nestAge to 0
+        ifelse nestNearby != nobody [ ;; and there is a nest nearby
+          ;; move to an open area with no nests nearby and make a nest
+          move-to one-of patches in-radius 5 with [pcolor = blue] ;; and not any? patches [in-radius 2 of nestNearby]
+          set nest patches in-radius 2    ;; create patch-set for nest
+          ask nest [set pcolor brown]
+        ][ ;; if there isn't a nest nearby, finally, I can make my own nest!
+          set nest patches in-radius 2    ;; create patch-set for nest
+          ask nest [set pcolor brown]
+        ]
+      ][
+        set nestWait nestWait + 1 ;; if I haven't waited long enough after nesting, just increment nestWait
+        swim
       ]
     ]
   ][
@@ -321,7 +333,7 @@ initial-population-size
 initial-population-size
 50
 500
-160.0
+120.0
 10
 1
 NIL
@@ -381,7 +393,7 @@ initial-adult-sex-ratio
 initial-adult-sex-ratio
 5
 95
-50.0
+45.0
 5
 1
 %
