@@ -27,6 +27,8 @@ females-own [
   num-of-exes                 ;; tracks mating partners an individual had in its life
   num-of-children             ;; tracks how many children an individual had
   adult?                      ;; boolean to flag if this agent is an adult
+  mating?                     ;; is this fish currently mating?
+  matingTimer                 ;; time until a fish can mate again
 ]
 
 parentalMales-own [
@@ -44,6 +46,8 @@ parentalMales-own [
   num-of-exes                 ;; tracks mating partners an individual had in its life
   num-of-children             ;; track how many children it has
   adult?                      ;; boolean to flag if this agent is an adult
+  mating?                     ;; is this fish currently mating?
+  matingTimer                 ;; time until a fish can mate again
 ]
 
 sneakerMales-own [
@@ -57,6 +61,8 @@ sneakerMales-own [
   num-of-exes           ;; tracks mating partners an individual had in its life
   num-of-children       ;; track how many children it has
   adult?                ;; boolean to flag if this agent is an adult
+  mating?               ;; is this fish currently mating?
+  matingTimer           ;; time until a fish can mate again
 ]
 
 
@@ -99,6 +105,8 @@ to setup
     set sexual-maturity 10                                                    ;; sneakers become sexually mature at roughly 2 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]      ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
+    set mating? False
+    set matingTimer 0
     set num-of-exes 0
     set num-of-children 0
   ]
@@ -125,6 +133,8 @@ to setup
     set sexual-maturity 40                                                    ;; parental males become sexually mature at roughly 7 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]      ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
+    set mating? False
+    set matingTimer 0
     set num-of-exes 0
     set num-of-children 0
   ]
@@ -136,11 +146,8 @@ to setup
     setxy random-xcor random-ycor
     set size 1.5
     set color pink
-    set partner nobody
-
     ;; females are assigned initial sneaker-child-chance from a random-normal distribution
     set sneaker-child-chance random-normal initial-average-sneaker-child-chance 0.05
-
     ;; curtail negative or greater-than-1 probabilities
     if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
     if sneaker-child-chance > 1 [ set sneaker-child-chance 1 ]
@@ -150,6 +157,9 @@ to setup
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
     set sexual-maturity 30                                                   ;; females become sexually mature at roughly 4 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]     ;; fish are adults if their age is greater than or equal to their sexual maturity age
+    set partner nobody
+    set mating? False
+    set matingTimer 0
     set num-of-exes 0
     set num-of-children 0
 
@@ -259,7 +269,7 @@ end
 to makeNest
   check-nest-age                                                    ;; check if I have been nesting for a while, if I have remove the old nest
 
-  let nestNearby patches in-radius 3 with [pcolor = brown]          ;; find any nearby nests - nests are spatially dispersed
+  let nestNearby patches in-radius 2 with [pcolor = brown]          ;; find any nearby nests - nests are spatially dispersed
 
   ifelse nest != 0 [                                                ;; if I have a nest already
     set nestAge nestAge + 1                                         ;; increment the age of the nest
@@ -303,21 +313,24 @@ end
 to findPartner
   set partner ([parental] of patch-here)                     ;; set female's partner to the parental male
   if partner = 0 or partner = nobody [ stop ]                ;; if there is no longer a parental male (died), don't mate
-  set nest ([nest] of partner)                               ;; assign female to a nest
-  set num-of-exes num-of-exes + 1                            ;; increment number of mating partners
-  ask partner [
-    set partner myself                                       ;; set parental male's partner to the nesting female
-    set num-of-exes num-of-exes + 1                          ;; increment number of mating partners
-      ;; sex of a male child is determined by sneaker-child-chance (determined by father and mother)
-    set temp-sneaker-child-chance ( sneaker-child-chance + [sneaker-child-chance] of myself ) / 2
-    reproduce                                                ;; once the fish have found a partner, lay and fertilize eggs (abstracted)
+  if (mating? = False and [mating?] of partner = False)[
+    set mating? True                                           ;; mark that a fish is currently mating
+    set nest ([nest] of partner)                               ;; assign female to a nest
+    set num-of-exes num-of-exes + 1                            ;; increment number of mating partners
+    ask partner [
+      set partner myself                                       ;; set parental male's partner to the nesting female
+      set num-of-exes num-of-exes + 1                          ;; increment number of mating partners
+        ;; sex of a male child is determined by sneaker-child-chance (determined by father and mother)
+      set temp-sneaker-child-chance ( sneaker-child-chance + [sneaker-child-chance] of myself ) / 2
+      reproduce                                                ;; once the fish have found a partner, lay and fertilize eggs (abstracted)
+    ]
   ]
 
 end
 
 ;; once the adult female and male have linked up, lay and fertilize the eggs
 to reproduce
-  set numOffspring round(random-normal 5 2)
+  set numOffspring round(random-normal 3 2)
 
   let numFemales round(numOffspring / 2)                     ;; for our purposes, assume 50/50 chance between male:female offspring
                                                              ;; in reality, this has been shown to be temperature dependent and fluctuates based on environmental factors
@@ -332,6 +345,8 @@ to reproduce
       set sexual-maturity 40
       set adult? False
       set partner nobody
+      set mating? False
+      set matingTimer 0
       set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
       ;; curtail negative or greater-than-1 probabilities
       if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
@@ -356,6 +371,8 @@ to reproduce
         set sexual-maturity 10
         set adult? False
         set partner nobody
+        set mating? False
+        set matingTimer 0
         set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
         ;; curtail negative or greater-than-1 probabilities
         if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
@@ -375,6 +392,8 @@ to reproduce
         set sexual-maturity 40
         set adult? False
         set partner nobody
+        set mating? False
+        set matingTimer 0
         set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
         ;; curtail negative or greater-than-1 probabilities
         if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
@@ -387,9 +406,49 @@ to reproduce
   ]
 end
 
+;; sneaker males around a nest will increase the chance that the offspring are sneakers
 to sneak
-
+  let nearby-nest one-of neighbors with [pcolor = brown]      ;; capture a nearby-nest
+  ifelse nearby-nest != nobody [                              ;; if there is a nest nearby
+    set partner ([parental] of nearby-nest)                   ;; capture parentalMale nesting
+    if partner = 0 or partner = nobody [ stop ]               ;; if there is no longer a parental male (died), don't mate
+    ask partner [
+      set sneaker-child-chance (sneaker-child-chance + sneaker-effect) ;; if there is a sneaker in the area, increase the chance that the offspring will be a sneaker
+    ]
+  ][
+    swim
+  ]
 end
+
+
+to-report totFemale
+  report count Females
+end
+
+to-report totPmale
+  report count parentalMales
+end
+
+to-report totSmale
+  report count sneakerMales
+end
+
+to-report average-sneaker-child-chance
+  ifelse any? turtles [
+    report mean [sneaker-child-chance] of turtles
+  ][
+    report 0
+  ]
+end
+
+to-report female-mating-success
+  report precision (mean [num-of-exes] of Females) 2
+end
+
+to-report male-mating-success
+  report precision (mean [num-of-exes] of parentalMales) 2
+end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 11
@@ -419,10 +478,10 @@ Ticks
 30.0
 
 BUTTON
-542
-15
-622
-63
+534
+38
+629
+95
 Setup
 setup
 NIL
@@ -436,10 +495,10 @@ NIL
 1
 
 BUTTON
-543
-66
-622
-114
+535
+105
+630
+161
 Go!
 go
 T
@@ -453,103 +512,103 @@ NIL
 0
 
 SLIDER
-631
-19
-882
-52
+640
+38
+825
+71
 initial-population-size
 initial-population-size
 50
-300
-80.0
+250
+140.0
 10
 1
 NIL
 HORIZONTAL
 
 SLIDER
-630
-102
-882
-135
+639
+121
+826
+154
 initial-sneaker-ratio
 initial-sneaker-ratio
 5
 95
-30.0
-5
+25.0
+1
 1
 %
 HORIZONTAL
 
 SLIDER
-630
-142
-881
-175
+639
+161
+859
+194
 initial-average-sneaker-child-chance
 initial-average-sneaker-child-chance
 0
 0.5
-0.11
+0.18
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-905
-20
-1155
-53
+637
+201
+827
+234
 mean-longevity
 mean-longevity
 0
 120
-110.0
+55.0
 5
 1
 NIL
 HORIZONTAL
 
 SLIDER
-631
-60
-883
-93
+640
+79
+827
+112
 initial-adult-sex-ratio
 initial-adult-sex-ratio
 5
 95
-25.0
+35.0
 5
 1
 %
 HORIZONTAL
 
 SWITCH
-537
-191
-635
-224
+533
+169
+631
+202
 fish-shape
 fish-shape
-1
+0
 1
 -1000
 
 PLOT
-536
-350
-918
-524
-Distribution of sexes
+535
+249
+917
+423
+Gender Distribution
 Time
 Count of individuals
 0.0
 1000.0
 0.0
-1000.0
+350.0
 true
 true
 "" ""
@@ -558,42 +617,166 @@ PENS
 "Sneaker-males" 1.0 0 -1184463 true "" "plot count sneakerMales"
 "Females" 1.0 0 -2064490 true "" "plot count females"
 
+SLIDER
+837
+38
+1027
+71
+sneaker-effect
+sneaker-effect
+0
+0.25
+0.03
+0.01
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+545
+16
+695
+34
+Controls
+11
+0.0
+1
+
+TEXTBOX
+655
+15
+805
+33
+Population Parameters
+11
+0.0
+1
+
+TEXTBOX
+846
+13
+996
+31
+Individual Parameters
+11
+0.0
+1
+
+MONITOR
+547
+428
+654
+473
+Total Females
+totFemale
+0
+1
+11
+
+MONITOR
+661
+428
+775
+473
+Total Parental Males
+totPmale
+0
+1
+11
+
+MONITOR
+783
+428
+907
+473
+Total Sneaker Males
+totSmale
+0
+1
+11
+
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+This model investigates the emergent patterns in the sexual demographics of Bluegill Sunfish (*Lepomis Macrochirus*) in light of the sneaker cuckolding strategy. Bluegill are sexually dimorphic species, with the males being larger and more colorful compared to the smaller and more drab females. These large males are called parental males, as they create a nest and defend the eggs on that nest. A sneaker is a male fish that mimics a female size, shape, and behavior and allocates most of its resources to producing sperm.
+
+This model aims at addressing questions around the effects of sneakers passing on their genetic material. For instance, if the sneakers were to increase the eggs which they fertilized, would this result in an unfavorable outcome for the bluegill population of a lake.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+This is a population dynamics model of sexually reproducing organisms. The demographic changes of the population are plotted as time progresses.
+
+There are three types of individuals in this model:
+- *Females* (medium and pink)
+- *Parental males* (large and green)
+- *Sneaker males* (small and yellow) 
+
+At every time interval the individuals:
+- Increase in age and check if they are dead
+	- Longevity determines the lifespan of a fish
+- Move randomly if they are not in the process of mating
+- Determine if they are sexually mature 
+
+At every time interval the sexually mature parental males:
+- Identify a location for a nest, if they have not already
+- 'Reproduce' once a suitable female has been found
+
+At every time interval the sexually mature females:
+- Find a nearby nest
+- Move to that nest
+- Exchange information with the parental male on the nest
+
+At every time interval the sexually mature sneaker males:
+- Find a nearby nest and disrupt it
+- This disruption is coded as increasing the chance that the parental male will have sneaker male offspring
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+Using the sliders, set your desired initial population and individual values (see the **Sliders** section below for more details). Click the SETUP button to setup the population. To run the model, click the GO button.
+
+The plots and monitors allow users to observe population-level changes and see the emergence of the Fisherian sex-ratio equilibrium.
+
+### Sliders
+
+INITIAL-POPULATION-SIZE: the initial number of individuals in the population
+INITIAL-ADULT-SEX-RATIO: the initial adult-sex-ratio (number of females/number individual * 100) in the population
+INITIAL-SNEAKER-SEX-RATIO: the initial sneaker-sex-ratio (number of sneaker males/number of parental males * 100) in the population
+INITIAL-AVERAGE-SNEAKER-CHILD-CHANCE: the initial average sneaker-child-chance of all the individuals in the population
+MEAN-LONGEVITY: the average longevity (number of ‘ticks’ an individual lives)
+
+### Switches
+FISH-SHAPE: Changes the shape of the agents from a fish to a dot
+
+### Plots
+GENDER DISTRIBUTION: shows numbers of all fish types
+
+
+### Monitors
+
+TOTAL FEMALES: The total number of females at that time interval
+TOTAL PARENTAL MALES: The total number of parental males at that time interval
+TOTAL SNEAKER MALES: The total number of sneaker males at that time interval
+
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
+Pay attention to the spatial distribution of nests. In reality, nests are globally clustered, but locally dispersed.
+
+Also notice what features need to be present in order for a stable population to exist.
 
 ## THINGS TO TRY
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Try to find an equilibrium between all three of the groups. Is it possible?
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
-
-## NETLOGO FEATURES
-
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
-
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+Overall, this model does a relatively poor job of replicating the real world. However, there may be some utility if the parameters are further tuned based on the literature.
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+This model builds on the Sex-Ratio model by Uri Wilensky:
+
+Dabholkar, S., Lee, J.S. and Wilensky, U. (2020).  NetLogo Sex Ratio Equilibrium model.  http://ccl.northwestern.edu/netlogo/models/SexRatioEquilibrium.  Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 @#$#@#$#@
 default
 true
