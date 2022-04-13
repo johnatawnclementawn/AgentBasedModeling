@@ -17,42 +17,43 @@ patches-own [
 ]
 
 females-own [
-  partner                     ;; a variable to temporarily store a mating-partner
-  sneaker-child-chance        ;; this is a trait variable that influences the probability of giving birth to a male child
-  temp-sneaker-child-chance   ;; stores sneaker-child-chance for a particular father-mother pair
   age                         ;; to keep track of age
   longevity                   ;; gets assigned at birth - age up to which an individual lives
   sexual-maturity             ;; universal sexual maturity for females
                               ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
   nest                        ;; during mating, fish is assigned to a nest
+  partner                     ;; a variable to temporarily store a mating-partner
+  sneaker-child-chance        ;; this is a trait variable that influences the probability of giving birth to a sneaker child
   num-of-exes                 ;; tracks mating partners an individual had in its life
   num-of-children             ;; tracks how many children an individual had
   adult?                      ;; boolean to flag if this agent is an adult
 ]
 
 parentalMales-own [
-  partner               ;; a variable to temporary store a mating-partner
-  sneaker-child-chance  ;; this is a trait variable that influences the probability of giving birth to a male child
-  age                   ;; tracks of age
-  longevity             ;; gets assigned at birth - age up to which an individual lives
-  sexual-maturity       ;; universal sexual maturity for parental males
-                        ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
-  nest                  ;; during mating, fish is assigned to a nest
-  nestAge               ;; time incrementor for how long a parental has been nesting, used for destroying nests after 'breeding season'
-  nestWait              ;; time incrementor for how long a parental male needs to wait until nesting again - simulates temporal nature of breeding
-  num-of-exes           ;; tracks mating partners an individual had in its life
-  num-of-children       ;; track how many children it has
-  adult?                ;; boolean to flag if this agent is an adult
+  age                         ;; tracks of age
+  longevity                   ;; gets assigned at birth - age up to which an individual lives
+  sexual-maturity             ;; universal sexual maturity for parental males
+                              ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
+  nest                        ;; during mating, fish is assigned to a nest
+  nestAge                     ;; time incrementor for how long a parental has been nesting, used for destroying nests after 'breeding season'
+  partner                     ;; a variable to temporary store a mating-partner
+  sneaker-child-chance        ;; this is a trait variable that influences the probability of giving birth to a sneaker child
+  temp-sneaker-child-chance   ;; stores sneaker-child-chance for a particular father-mother pair
+  numOffspring                ;; number of offspring in a nesting - for our purposes, this refers to fish reaching adulthood, rather than eggs
+  nestWait                    ;; time incrementor for how long a parental male needs to wait until nesting again - simulates temporal nature of breeding
+  num-of-exes                 ;; tracks mating partners an individual had in its life
+  num-of-children             ;; track how many children it has
+  adult?                      ;; boolean to flag if this agent is an adult
 ]
 
 sneakerMales-own [
-  partner               ;; a variable to temporary store a mating-partner
-  sneaker-child-chance  ;; this is a trait variable that influences the probability of giving birth to a male child
   age                   ;; tracks of age
   longevity             ;; gets assigned at birth - age up to which an individual lives
   sexual-maturity       ;; universal sexual maturity for sneaker males
                         ;; the actual age-at-sexual maturity for each group is an order of magnitude smaller
   nest                  ;; during mating, fish is assigned to a nest
+  partner               ;; a variable to temporary store a mating-partner
+  sneaker-child-chance  ;; this is a trait variable that influences the probability of giving birth to a sneaker child
   num-of-exes           ;; tracks mating partners an individual had in its life
   num-of-children       ;; track how many children it has
   adult?                ;; boolean to flag if this agent is an adult
@@ -95,7 +96,7 @@ to setup
     ;; initialize turtle variables
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
-    set sexual-maturity 20                                                    ;; sneakers become sexually mature at roughly 2 years old
+    set sexual-maturity 10                                                    ;; sneakers become sexually mature at roughly 2 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]      ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
     set num-of-exes 0
@@ -121,7 +122,7 @@ to setup
     ;; initialize turtle variables
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
-    set sexual-maturity 70                                                    ;; parental males become sexually mature at roughly 7 years old
+    set sexual-maturity 40                                                    ;; parental males become sexually mature at roughly 7 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]      ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set partner nobody
     set num-of-exes 0
@@ -147,7 +148,7 @@ to setup
     ;; initialize rest of turtle variables
     set age int (random-normal (mean-longevity / 2) (mean-longevity / 10))
     set longevity int (random-normal mean-longevity (mean-longevity / 10))
-    set sexual-maturity 40                                                   ;; females become sexually mature at roughly 4 years old
+    set sexual-maturity 30                                                   ;; females become sexually mature at roughly 4 years old
     ifelse (age >= sexual-maturity) [set adult? True] [set adult? False]     ;; fish are adults if their age is greater than or equal to their sexual maturity age
     set num-of-exes 0
     set num-of-children 0
@@ -164,7 +165,7 @@ to go
   ask turtles [ check-if-dead ]           ;; remove turtles that have become too old
   ask turtles [ check-if-adult ]          ;; check if turtles are sexually mature
 
-  ;; set turtle shape - dots are better for quick viz
+  ;; set turtle shape - fish shapes can cover up interactions
   ifelse fish-shape [
     ask turtles [ set shape "fish" ]
   ][
@@ -298,12 +299,91 @@ to findNest
   ]
 end
 
+;; once an adult female has found a nest, identify the parental male that built the nest
 to findPartner
   set partner ([parental] of patch-here)                     ;; set female's partner to the parental male
   if partner = 0 or partner = nobody [ stop ]                ;; if there is no longer a parental male (died), don't mate
   set nest ([nest] of partner)                               ;; assign female to a nest
+  set num-of-exes num-of-exes + 1                            ;; increment number of mating partners
   ask partner [
-    set partner myself                                     ;; set parental male's partner to the nesting female
+    set partner myself                                       ;; set parental male's partner to the nesting female
+    set num-of-exes num-of-exes + 1                          ;; increment number of mating partners
+      ;; sex of a male child is determined by sneaker-child-chance (determined by father and mother)
+    set temp-sneaker-child-chance ( sneaker-child-chance + [sneaker-child-chance] of myself ) / 2
+    reproduce                                                ;; once the fish have found a partner, lay and fertilize eggs (abstracted)
+  ]
+
+end
+
+;; once the adult female and male have linked up, lay and fertilize the eggs
+to reproduce
+  set numOffspring round(random-normal 5 2)
+
+  let numFemales round(numOffspring / 2)                     ;; for our purposes, assume 50/50 chance between male:female offspring
+                                                             ;; in reality, this has been shown to be temperature dependent and fluctuates based on environmental factors
+  repeat numFemales [                                        ;; hatch females first
+    hatch-females 1 [
+      set size 1.5
+      set color pink
+      ifelse fish-shape[ set shape "fish" ][ set shape "dot" ]
+      set heading random 360
+      set age 0
+      set longevity int (random-normal mean-longevity (mean-longevity / 10))
+      set sexual-maturity 40
+      set adult? False
+      set partner nobody
+      set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
+      ;; curtail negative or greater-than-1 probabilities
+      if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
+      if sneaker-child-chance > 1 [ set sneaker-child-chance 1 ]
+      set num-of-exes 0
+      set num-of-children 0
+      set nest 0
+    ]
+  ]
+
+  let numMales numOffspring - numFemales                                       ;; calculate the number of remaining offspring
+  let chanceSneakers (numMales) * temp-sneaker-child-chance                    ;; calculate the chance that male is a sneaker
+  repeat numMales [                                                            ;; hatch the males
+    ifelse random-float 1 < chanceSneakers [                                   ;; chance of having a sneaker over a parental
+      hatch-sneakerMales 1 [
+        set size 1
+        set color yellow
+        ifelse fish-shape[ set shape "fish" ][ set shape "dot" ]
+        set heading random 360
+        set age 0
+        set longevity int (random-normal mean-longevity (mean-longevity / 10))
+        set sexual-maturity 10
+        set adult? False
+        set partner nobody
+        set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
+        ;; curtail negative or greater-than-1 probabilities
+        if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
+        if sneaker-child-chance > 1 [ set sneaker-child-chance 1 ]
+        set num-of-exes 0
+        set num-of-children 0
+        set nest 0
+      ]
+    ][
+      hatch-parentalMales 1 [
+        set size 2
+        set color green
+        ifelse fish-shape[ set shape "fish" ][ set shape "dot" ]
+        set heading random 360
+        set age 0
+        set longevity int (random-normal mean-longevity (mean-longevity / 10))
+        set sexual-maturity 40
+        set adult? False
+        set partner nobody
+        set sneaker-child-chance random-normal [sneaker-child-chance] of myself 0.05
+        ;; curtail negative or greater-than-1 probabilities
+        if sneaker-child-chance < 0 [ set sneaker-child-chance 0 ]
+        if sneaker-child-chance > 1 [ set sneaker-child-chance 1 ]
+        set num-of-exes 0
+        set num-of-children 0
+        set nest 0
+      ]
+    ]
   ]
 end
 
@@ -381,7 +461,7 @@ initial-population-size
 initial-population-size
 50
 300
-120.0
+80.0
 10
 1
 NIL
@@ -396,7 +476,7 @@ initial-sneaker-ratio
 initial-sneaker-ratio
 5
 95
-50.0
+30.0
 5
 1
 %
@@ -410,8 +490,8 @@ SLIDER
 initial-average-sneaker-child-chance
 initial-average-sneaker-child-chance
 0
-1
 0.5
+0.11
 0.01
 1
 NIL
@@ -441,7 +521,7 @@ initial-adult-sex-ratio
 initial-adult-sex-ratio
 5
 95
-45.0
+25.0
 5
 1
 %
@@ -457,6 +537,26 @@ fish-shape
 1
 1
 -1000
+
+PLOT
+536
+350
+918
+524
+Distribution of sexes
+Time
+Count of individuals
+0.0
+1000.0
+0.0
+1000.0
+true
+true
+"" ""
+PENS
+"Parental-males" 1.0 0 -10899396 true "" "plot count parentalMales"
+"Sneaker-males" 1.0 0 -1184463 true "" "plot count sneakerMales"
+"Females" 1.0 0 -2064490 true "" "plot count females"
 
 @#$#@#$#@
 ## WHAT IS IT?
