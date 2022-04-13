@@ -209,6 +209,24 @@ end
 to check-if-dead                                  ;; all fish procedure
   ifelse age > longevity [
     set age-list lput [age] of self age-list
+    if nest != 0 [
+      ask nest [set pcolor blue
+                set is-nest? False
+                set parental 0
+      ]
+    ]
+    ifelse partner = nobody [
+      die
+    ][
+      ifelse partner = 0 [
+        die
+      ][
+        ask partner [set partner 0                 ;; reset partner's link to this fish
+                     set nest 0                    ;; reset partner's nest
+        die
+        ]
+      ]
+    ]
     die
   ][
     set age (age + 1)
@@ -226,7 +244,7 @@ end
 
 ;; check nest age, remove nest if it has reached a pre-determined nesting time
 to check-nest-age                           ;; parental male procedure
-  if (nest != 0 and nestAge >= 5) [
+  if (nest != 0 and nestAge > 15) [
     ask nest [set pcolor blue               ;; return the nest to the ocean
               set is-nest? False            ;; patches are no longer a nest
               set parental 0                ;; there is no longer a parental male nesting on these patches
@@ -282,6 +300,7 @@ end
 
 to findPartner
   set partner ([parental] of patch-here)                     ;; set female's partner to the parental male
+  if partner = 0 or partner = nobody [ stop ]                ;; if there is no longer a parental male (died), don't mate
   set nest ([nest] of partner)                               ;; assign female to a nest
   ask partner [
     set partner myself                                     ;; set parental male's partner to the nesting female
@@ -377,7 +396,7 @@ initial-sneaker-ratio
 initial-sneaker-ratio
 5
 95
-20.0
+50.0
 5
 1
 %
@@ -429,10 +448,10 @@ initial-adult-sex-ratio
 HORIZONTAL
 
 SWITCH
-916
-93
-1051
-126
+537
+191
+635
+224
 fish-shape
 fish-shape
 1
